@@ -10,7 +10,8 @@ fun addNat (pair: Nat * Nat) =
   case pair of
      (Zero, n) => n
    | (n, Zero) => n
-   | (Succ m, n) => addNat(m, Succ (Succ n))
+   | (Succ m, n) => addNat(m, Succ n)
+
 
 fun cancelNats (pair: Nat * Nat): (SizeComparison * Nat) =
   case pair of
@@ -26,6 +27,21 @@ fun computeAddForPosNeg (pair: SizeComparison * Nat): N =
    | (SizeLT, r) => Number (Negative, r)
    | (SizeGT, r) => Number (Positive, r)
 
+fun negateN (num: N): N =
+  case num of
+     Number (Positive, n) => Number (Negative, n)
+   | Number (Negative, n) => Number (Positive, n)
+
+fun recNumToInt (num: N, sum: int): int =
+  case num of
+     Number (_, Zero) => sum
+   | Number (Positive, Succ n) => recNumToInt(Number (Positive, n), sum + 1)
+   | Number (Negative, Succ n) => recNumToInt(Number (Negative, n), sum - 1)
+
+fun numToInt (num: N): int =
+  recNumToInt(num, 0)
+
+
 fun addN (pair: N * N): N =
   case pair of
      (Number (Positive, m), Number (Positive, n)) => Number (Positive, addNat(m, n))
@@ -33,6 +49,8 @@ fun addN (pair: N * N): N =
    | (Number (Positive, m), Number (Negative, n)) => computeAddForPosNeg (cancelNats(m, n))
    | (Number (Negative, m), Number (Positive, n)) => computeAddForPosNeg (cancelNats(n, m))
 
+fun subN (pair: N * N): N =
+  addN (#1 pair, negateN (#2 pair))
 
 
 
@@ -117,10 +135,9 @@ fun evalAexp (pair: Aexp * (Loc -> N)) : N =
        ANumber n => n
      | ALocation l => st(l)
      | AAdd (a0, a1) => addN(evalAexp(a0, st), evalAexp(a1, st))
-     | ASubtract (a0, a1) => raise Fail "this isn't implemented yet"
+     | ASubtract (a0, a1) => subN(evalAexp(a0, st), evalAexp(a1, st))
      | AMultiply (a0, a1) => raise Fail "this isn't implemented yet"
   end
-
 
 
 
@@ -139,3 +156,23 @@ val add1Ident = identAexp(add1, add2)
 
 
 val stateAllZeros: Loc -> N = fn l => Number (Positive, Zero);
+
+
+val one: Nat = Succ Zero;
+val two: Nat = Succ one;
+val three: Nat = Succ two;
+val posOne: N = Number (Positive, one);
+val posTwo: N = Number (Positive, two);
+val posThree: N = Number (Positive, three);
+
+val expAdd: Aexp = AAdd (ANumber posOne, ANumber posTwo);
+val expAddResult: N = evalAexp(expAdd, stateAllZeros);
+
+val addResultInt: int = numToInt(expAddResult);
+
+
+val negOne: N = Number (Negative, one);
+val expSub: Aexp = ASubtract (ANumber negOne, ANumber posThree);
+val expSubResult: N = evalAexp(expSub, stateAllZeros);
+
+val subResultInt: int = numToInt(expSubResult);
