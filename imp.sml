@@ -12,6 +12,12 @@ fun addNat (pair: Nat * Nat) =
    | (n, Zero) => n
    | (Succ m, n) => addNat(m, Succ n)
 
+fun multNat (pair: Nat * Nat) =
+  case pair of
+     (Zero, n) => Zero
+   | (n, Zero) => Zero
+   | (Succ m, n) => addNat(multNat(m, n), n)
+
 
 fun cancelNats (pair: Nat * Nat): (SizeComparison * Nat) =
   case pair of
@@ -53,6 +59,14 @@ fun subN (pair: N * N): N =
   addN (#1 pair, negateN (#2 pair))
 
 
+fun multN (pair: N * N): N =
+  case pair of
+     (Number (_, Zero), _) => Number (Positive, Zero)
+   | (_, Number (_, Zero)) => Number (Positive, Zero)
+   | (Number (Positive, m), Number (Positive, n)) => Number (Positive, multNat(m, n))
+   | (Number (Negative, m), Number (Negative, n)) => Number (Positive, multNat(m, n))
+   | (Number (Positive, m), Number (Negative, n)) => Number (Negative, multNat(m, n))
+   | (Number (Negative, m), Number (Positive, n)) => Number (Negative, multNat(m, n))
 
 
 datatype T = True | False
@@ -136,7 +150,7 @@ fun evalAexp (pair: Aexp * (Loc -> N)) : N =
      | ALocation l => st(l)
      | AAdd (a0, a1) => addN(evalAexp(a0, st), evalAexp(a1, st))
      | ASubtract (a0, a1) => subN(evalAexp(a0, st), evalAexp(a1, st))
-     | AMultiply (a0, a1) => raise Fail "this isn't implemented yet"
+     | AMultiply (a0, a1) => multN(evalAexp(a0, st), evalAexp(a1, st))
   end
 
 
@@ -161,9 +175,12 @@ val stateAllZeros: Loc -> N = fn l => Number (Positive, Zero);
 val one: Nat = Succ Zero;
 val two: Nat = Succ one;
 val three: Nat = Succ two;
+val four: Nat = Succ three;
 val posOne: N = Number (Positive, one);
 val posTwo: N = Number (Positive, two);
 val posThree: N = Number (Positive, three);
+val negOne: N = Number (Negative, one);
+val negFour: N = Number (Negative, four);
 
 val expAdd: Aexp = AAdd (ANumber posOne, ANumber posTwo);
 val expAddResult: N = evalAexp(expAdd, stateAllZeros);
@@ -171,8 +188,12 @@ val expAddResult: N = evalAexp(expAdd, stateAllZeros);
 val addResultInt: int = numToInt(expAddResult);
 
 
-val negOne: N = Number (Negative, one);
 val expSub: Aexp = ASubtract (ANumber negOne, ANumber posThree);
 val expSubResult: N = evalAexp(expSub, stateAllZeros);
 
 val subResultInt: int = numToInt(expSubResult);
+
+
+val expMult: Aexp = AMultiply (ANumber negFour, ANumber posTwo);
+val expMultResult: N = evalAexp(expMult, stateAllZeros);
+val multResultInt: int = numToInt(expMultResult);
