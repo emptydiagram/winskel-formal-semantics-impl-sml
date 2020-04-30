@@ -71,6 +71,22 @@ fun multN (pair: N * N): N =
 
 datatype T = True | False
 
+fun notT (x: T) : T =
+  case x of
+     True => False
+   | False => True
+
+fun andT (pair: T * T) : T =
+  case pair of
+     (True, True) => True
+   | _ => False
+
+fun orT (pair: T * T) : T =
+  case pair of
+     (False, False) => False
+   | _ => True
+
+
 datatype Loc = Location of int
 
 datatype Aexp
@@ -136,9 +152,20 @@ fun identAexp (pair: Aexp * Aexp): bool =
   case pair of
      (ANumber n0, ANumber n1) => identN(n0, n1)
    | (ALocation l0, ALocation l1) => identLoc(l0, l1)
-   | (AAdd (a0, a1), AAdd (b0, b1)) => a0 = b0 andalso a1 = b1
-   | (ASubtract (a0, a1), ASubtract (b0, b1)) => a0 = b0 andalso a1 = b1
-   | (AMultiply (a0, a1), AMultiply (b0, b1)) => a0 = b0 andalso a1 = b1
+   | (AAdd (a0, a1), AAdd (b0, b1)) => identAexp(a0, b0) andalso identAexp(a1, b1)
+   | (ASubtract (a0, a1), ASubtract (b0, b1)) => identAexp(a0, b0) andalso identAexp(a1, b1)
+   | (AMultiply (a0, a1), AMultiply (b0, b1)) => identAexp(a0, b0) andalso identAexp(a1, b1)
+
+
+fun identBexp (pair: Bexp * Bexp): bool =
+  case pair of
+     (BTruthValue t0, BTruthValue t1) => t0 = t1
+   | (BEq (a0, a1), BEq (b0, b1)) => identAexp(a0, b0) andalso identAexp(a1, b1)
+   | (BLeq (a0, a1), BLeq (b0, b1)) => identAexp(a0, b0) andalso identAexp(a1, b1)
+   | (BNot a0, BNot b0) => identBexp(a0, b0)
+   | (BAnd (a0, a1), BAnd (b0, b1)) => identBexp(a0, b0) andalso identBexp(a1, b1)
+   | (BOr (a0, a1), BOr (b0, b1)) => identBexp(a0, b0) andalso identBexp(a1, b1)
+
 
 
 fun evalAexp (pair: Aexp * (Loc -> N)) : N =
@@ -151,6 +178,20 @@ fun evalAexp (pair: Aexp * (Loc -> N)) : N =
      | AAdd (a0, a1) => addN(evalAexp(a0, st), evalAexp(a1, st))
      | ASubtract (a0, a1) => subN(evalAexp(a0, st), evalAexp(a1, st))
      | AMultiply (a0, a1) => multN(evalAexp(a0, st), evalAexp(a1, st))
+  end
+
+
+fun evalBexp (pair: Bexp * (Loc -> N)) : T =
+  let val b = #1 pair
+      val st = #2 pair
+  in
+    case b of
+       BTruthValue t => t
+     | BEq (b0, b1) => if evalAexp (b0, st) = (evalAexp (b1, st)) then True else False
+     | BLeq (b0, b1) => if numToInt(evalAexp (b0, st)) <= numToInt(evalAexp (b1, st)) then True else False
+     | BNot b => notT (evalBexp (b, st))
+     | BAnd (b0, b1) => andT (evalBexp (b0, st), evalBexp (b1, st))
+     | BOr (b0, b1) => orT (evalBexp (b0, st), evalBexp (b1, st))
   end
 
 
@@ -197,3 +238,10 @@ val subResultInt: int = numToInt(expSubResult);
 val expMult: Aexp = AMultiply (ANumber negFour, ANumber posTwo);
 val expMultResult: N = evalAexp(expMult, stateAllZeros);
 val multResultInt: int = numToInt(expMultResult);
+
+
+val expEq: Bexp = BEq (add1, add2)
+val expEqResult: T = evalBexp(expEq, stateAllZeros)
+
+val expLeq: Bexp = BLeq (ANumber posThree, ANumber posOne)
+val expLeqResult: T = evalBexp(expLeq, stateAllZeros)
