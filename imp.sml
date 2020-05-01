@@ -167,8 +167,9 @@ fun identBexp (pair: Bexp * Bexp): bool =
    | (BOr (a0, a1), BOr (b0, b1)) => identBexp(a0, b0) andalso identBexp(a1, b1)
 
 
+type State = Loc -> N
 
-fun evalAexp (pair: Aexp * (Loc -> N)) : N =
+fun evalAexp (pair: Aexp * State) : N =
   let val a = #1 pair
       val st = #2 pair
   in
@@ -181,7 +182,7 @@ fun evalAexp (pair: Aexp * (Loc -> N)) : N =
   end
 
 
-fun evalBexp (pair: Bexp * (Loc -> N)) : T =
+fun evalBexp (pair: Bexp * State) : T =
   let val b = #1 pair
       val st = #2 pair
   in
@@ -194,6 +195,23 @@ fun evalBexp (pair: Bexp * (Loc -> N)) : T =
      | BOr (b0, b1) => orT (evalBexp (b0, st), evalBexp (b1, st))
   end
 
+fun evalCom (pair: Com * State) : State =
+  let val c = #1 pair
+      val st = #2 pair
+  in
+    case c of
+       Skip => st
+     | Assign (loc, a) => (fn l => if l = loc then evalAexp (a, st) else (st l))
+     | Sequence (c0, c1) => let val st' = evalCom (c0, st)
+                            in evalCom (c1, st')
+                            end
+     | IfThenElse (b, c0, c1) => let val t = evalBexp (b, st)
+                                 in if t = True then evalCom (c0, st) else evalCom (c1, st)
+                                 end
+     | WhileDo (b, c0) => let val t = evalBexp (b, st)
+                          in if t = False then st else evalCom (c, evalCom (c0, st))
+                          end
+  end
 
 
 (* demos *)
@@ -210,7 +228,7 @@ val add2: Aexp = AAdd (
 val add1Ident = identAexp(add1, add2)
 
 
-val stateAllZeros: Loc -> N = fn l => Number (Positive, Zero);
+val stateAllZeros: State = fn l => Number (Positive, Zero);
 
 
 val one: Nat = Succ Zero;
@@ -245,3 +263,9 @@ val expEqResult: T = evalBexp(expEq, stateAllZeros)
 
 val expLeq: Bexp = BLeq (ANumber posThree, ANumber posOne)
 val expLeqResult: T = evalBexp(expLeq, stateAllZeros)
+
+
+val comAssign: Com = Assign (Location 5, expAdd)
+val comAssignResult : State = evalCom (comAssign, stateAllZeros)
+val comAssignResult4 = numToInt(comAssignResult (Location 4))
+val comAssignResult5 = numToInt(comAssignResult (Location 5))
